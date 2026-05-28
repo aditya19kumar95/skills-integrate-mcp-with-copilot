@@ -10,6 +10,23 @@ Remember, it's self-paced so feel free to take a break! ☕️
 
 [![](https://img.shields.io/badge/Go%20to%20Exercise-%E2%86%92-1f883d?style=for-the-badge&logo=github&labelColor=197935)](https://github.com/aditya19kumar95/skills-integrate-mcp-with-copilot/issues/1)
 
+## Authentication and Authorization
+
+The API now protects signup and unregister routes with bearer token authentication.
+
+Use one of the sample API keys as a bearer token in the `Authorization` header:
+
+- `teacher-secret-key-123` — role: `teacher`
+- `student-secret-key-456` — role: `student`
+
+Example header:
+
+```http
+Authorization: Bearer teacher-secret-key-123
+```
+
+Teachers can sign up or unregister any student. Students can only sign up or unregister themselves.
+
 ---
 
 &copy; 2025 GitHub &bull; [Code of Conduct](https://www.contributor-covenant.org/version/2/1/code_of_conduct/code_of_conduct.md) &bull; [MIT License](https://gh.io/mit)

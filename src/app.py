@@ -5,7 +5,8 @@ A super simple FastAPI application that allows students to view and sign up
 for extracurricular activities at Mergington High School.
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 import os
@@ -13,6 +14,46 @@ from pathlib import Path
 
 app = FastAPI(title="Mergington High School API",
               description="API for viewing and signing up for extracurricular activities")
+
+security = HTTPBearer()
+
+api_users = {
+    "teacher-secret-key-123": {
+        "email": "teacher@mergington.edu",
+        "role": "teacher"
+    },
+    "student-secret-key-456": {
+        "email": "student@mergington.edu",
+        "role": "student"
+    }
+}
+
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    if credentials.scheme.lower() != "bearer":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication scheme"
+        )
+
+    token = credentials.credentials
+    user = api_users.get(token)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing API token"
+        )
+    return user
+
+
+def require_role(*allowed_roles):
+    def role_dependency(current_user = Depends(get_current_user)):
+        if current_user["role"] not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions"
+            )
+        return current_user
+    return role_dependency
 
 # Mount the static files directory
 current_dir = Path(__file__).parent
@@ -89,8 +130,15 @@ def get_activities():
 
 
 @app.post("/activities/{activity_name}/signup")
-def signup_for_activity(activity_name: str, email: str):
+def signup_for_activity(activity_name: str, email: str, current_user = Depends(require_role("student", "teacher"))):
     """Sign up a student for an activity"""
+    # Students may only sign themselves up
+    if current_user["role"] == "student" and email != current_user["email"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Students can only sign up themselves"
+        )
+
     # Validate activity exists
     if activity_name not in activities:
         raise HTTPException(status_code=404, detail="Activity not found")
@@ -111,8 +159,15 @@ def signup_for_activity(activity_name: str, email: str):
 
 
 @app.delete("/activities/{activity_name}/unregister")
-def unregister_from_activity(activity_name: str, email: str):
+def unregister_from_activity(activity_name: str, email: str, current_user = Depends(require_role("student", "teacher"))):
     """Unregister a student from an activity"""
+    # Students may only unregister themselves
+    if current_user["role"] == "student" and email != current_user["email"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Students can only unregister themselves"
+        )
+
     # Validate activity exists
     if activity_name not in activities:
         raise HTTPException(status_code=404, detail="Activity not found")
